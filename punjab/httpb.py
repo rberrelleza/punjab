@@ -472,8 +472,17 @@ class Httpb(resource.Resource):
 
         self.return_body(request, b, session.charset)
 
-
     def return_error(self, e, request):
+        # Make sure we don't try to respond to an HTTP request that has been
+        # closed by the other side. It may be better to handle this by using
+        # request.notifyFinish().addErrback() but the session.WaitingRequest
+        # object would need to have knowledge of the closed request so it
+        # didn't try to errback on the deferred a second time.
+        if request._disconnected:
+            log.msg('HTTP request %s is closed. Can not return error: %s'
+                    % (request, e))
+            return
+
         echildren = []
         try:
             # TODO - clean this up and make errors better
@@ -501,8 +510,17 @@ class Httpb(resource.Resource):
             log.err()
             pass
 
-
     def return_body(self, request, b, charset="utf-8"):
+        # Make sure we don't try to respond to an HTTP request that has been
+        # closed by the other side. It may be better to handle this by using
+        # request.notifyFinish().addErrback() but the session.WaitingRequest
+        # object would need to have knowledge of the closed request so it
+        # didn't try to callback on the deferred a second time.
+        if request._disconnected:
+            log.msg('HTTP request %s is closed. Can not return body: %s'
+                    % (request, b))
+            return
+
         request.setResponseCode(200)
         bxml = b.toXml(prefixes=ns.XMPP_PREFIXES.copy()).encode(charset,'replace')
 
