@@ -3,7 +3,7 @@
 
 """
 from twisted.internet import defer,  reactor
-from twisted.python import log
+from twisted.python import failure, log
 from twisted.web import server
 from twisted.names.srvconnect import SRVConnector
 
@@ -67,7 +67,7 @@ def make_session(pint, attrs, session_type='BOSH'):
     if pint.v:
         log.msg('================================== %s connect to %s:%s ==================================' % (str(time.time()),s.hostname,s.port))
 
-    connect_srv = True
+    connect_srv = s.connect_srv
     if attrs.has_key('route'):
         connect_srv = False
     if s.hostname in ['localhost', '127.0.0.1']:
@@ -185,6 +185,8 @@ class Session(jabber.JabberClientFactory, server.Session):
             self.hostname = self.to
 
         self.use_raw = getattr(pint, 'use_raw', False) # use raw buffers
+
+        self.connect_srv = getattr(pint, 'connect_srv', True)
 
         self.secure = attrs.has_key('secure') and attrs['secure'] == 'true'
         self.authenticator.useTls = self.secure
@@ -483,6 +485,7 @@ class Session(jabber.JabberClientFactory, server.Session):
         # but never got a stream features before the timeout
         if self.pint.v:
             log.msg('================================== %s %s startup timeout ==================================' % (str(self.sid), str(time.time()),))
+
         for i in range(len(self.waiting_requests)):
             if self.waiting_requests[i].deferred == d:
                 # check if we really failed or not
@@ -509,7 +512,11 @@ class Session(jabber.JabberClientFactory, server.Session):
     def streamError(self, streamerror):
         """called when we get a stream:error stanza"""
         self.stream_error_called = True
-        err_elem = getattr(streamerror.value, "element", None)
+        try:
+            err_elem = streamerror.value.getElement()
+        except AttributeError:
+            err_elem = None
+
         e = self.buildRemoteError(err_elem)
 
         do_expire = True
@@ -530,22 +537,22 @@ class Session(jabber.JabberClientFactory, server.Session):
                 s = self.pint.sessions.get(self.sid)
                 s.stream_error = e
 
-
-    def connectError(self, xs):
+    def connectError(self, reason):
         """called when we get disconnected"""
         if self.stream_error_called: return
+        # Before Twisted 11.x the xmlstream object was passed instead of the
+        # disconnect reason. See http://twistedmatrix.com/trac/ticket/2618
+        if not isinstance(reason, failure.Failure):
+            reason_str = 'Reason unknown'
+        else:
+            reason_str = str(reason)
 
-        # If the connection was established and lost, then we need to report the error
-        # back to the client, since he needs to reauthenticate.  FIXME: If the connection was
-        # lost before anything happened, we could silently retry instead.
+        # If the connection was established and lost, then we need to report
+        # the error back to the client, since he needs to reauthenticate.
+        # FIXME: If the connection was lost before anything happened, we could
+        # silently retry instead.
         if self.verbose:
-            log.msg('connect ERROR')
-            try:
-                log.msg(xs)
-
-            except:
-                pass
-
+            log.msg('connect ERROR: %s' % reason_str)
 
         self.stopTrying()
 
