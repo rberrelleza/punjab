@@ -387,7 +387,7 @@ class Session(jabber.JabberClientFactory, server.Session):
 
         if self.version == '1.0':
             self.xmlstream.addObserver("/features", self.featuresHandler)
-        log.msg("XMPP connected: {}, dir: {}".format(xs, dir(xs)))
+        log.msg("XMPP connected: authid-{}".format(xs.sid))
 
 
 
