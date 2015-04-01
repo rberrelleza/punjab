@@ -369,6 +369,13 @@ class Httpb(resource.Resource):
             log.msg(str(request.content.read()))
             request.content.seek(0, 0)
 
+        def on_finished(reason):
+            setattr(request, 'finished', True)
+            if reason:  # is None for non-error condition
+                log.msg("request finished: {}".format(reason))
+
+        request.notifyFinish().addBoth(on_finished)
+
         self.hp       = HttpbParse()
         try:
             body_tag, xmpp_elements = self.hp.parse(request.content.read())
@@ -402,8 +409,8 @@ class Httpb(resource.Resource):
                 s, d = self.service.parseBody(body_tag, xmpp_elements)
                 d.addCallback(self.return_httpb, s, request)
             elif body_tag.hasAttribute('sid'):
-                if self.service.v:
-                    log.msg("no sid is found but the body element has a 'sid' attribute")
+                log.err("Body 'sid' attribute not found in sessions: sid-{}"
+                        .format(body_tag.getAttribute('sid')))
                 # This is an error, no sid is found but the body element has a 'sid' attribute
                 self.send_http_error(404, request)
                 return server.NOT_DONE_YET
@@ -506,9 +513,9 @@ class Httpb(resource.Resource):
                 return  server.NOT_DONE_YET
             else:
                 self.send_http_error(500, request, 'internal-server-error', 'error', e)
+                return  server.NOT_DONE_YET
         except:
             log.err()
-            pass
 
     def return_body(self, request, b, charset="utf-8"):
         # Make sure we don't try to respond to an HTTP request that has been
@@ -519,6 +526,10 @@ class Httpb(resource.Resource):
         if request._disconnected:
             log.msg('HTTP request %s is closed. Can not return body: %s'
                     % (request, b))
+            return
+
+        if getattr(request, 'finished'):
+            log.msg("omitting return_body after request finished")
             return
 
         request.setResponseCode(200)
@@ -535,6 +546,9 @@ class Httpb(resource.Resource):
         request.finish()
 
     def send_http_error(self, code, request, condition = 'undefined-condition', typ = 'terminate', data = '', charset = 'utf-8', children=None):
+        if getattr(request, 'finished'):
+            log.msg("omitting send_http_error after request finished")
+            return
         request.setResponseCode(int(code))
         xml_prefixes = ns.XMPP_PREFIXES.copy()
 
@@ -549,7 +563,6 @@ class Httpb(resource.Resource):
         else:
             b['type']      = 'terminate'
         punjab.uriCheck(b, NS_BIND)
-        bxml = b.toXml(prefixes=xml_prefixes).encode(charset, 'replace')
 
         if children:
             b.children += children
@@ -653,6 +666,7 @@ class HttpbService(punjab.Service):
                     valid_host = True
                     break
             if not valid_host:
+                log.msg("client requested a host not on whitelist: {}".format(body['to']))
                 return None, defer.fail(error.BadRequest)
 
         if self.black_list:
@@ -668,6 +682,7 @@ class HttpbService(punjab.Service):
                     valid_host = False
                     break
             if not valid_host:
+                log.msg("client requested a host on blacklist: {}".format(body['to']))
                 return None, defer.fail(error.BadRequest)
 
         # look for wait
@@ -689,38 +704,37 @@ class HttpbService(punjab.Service):
 
     def stopService(self):
         """Perform shutdown procedures."""
-        if self.v:
-            log.msg("Stopping HTTPB service.")
+        log.msg("Stopping HTTPB service.")
         self.terminateSessions()
-        return defer.succeed(True)
+        punjab.Service.stopService(self)
 
     def terminateSessions(self):
         """Terminate all active sessions."""
-        if self.v:
-            log.msg('Terminating %d BOSH sessions.' % len(self.sessions))
+        log.msg('Terminating %d BOSH sessions.' % len(self.sessions))
         for s in self.sessions.values():
             s.terminate()
 
     def parseBody(self, body, xmpp_elements):
+        s = None
         try:
             # grab session
             if body.hasAttribute('sid'):
                 sid = str(body['sid'])
             else:
-                if self.v:
-                    log.msg('Session ID not found')
+                log.msg('Session ID not found in body')
                 return None, defer.fail(error.NotFound)
             if self.inSession(body):
                 s = self.sessions[sid]
                 s.touch() # any connection should be a renew on wait
             else:
-                if self.v:
-                    log.msg('session does not exist?')
+                log.msg('session does not exist: sid-{}'.format(sid))
                 return None, defer.fail(error.NotFound)
 
             if bool(s.key) != body.hasAttribute('key'):
                 # This session is keyed, but there's no key in this packet; or there's
                 # a key in this packet, but the session isn't keyed.
+                log.err("Key and session mismatch: {}, {}"
+                        .format(bool(s.key), body.hasAttribute('key')))
                 return s, defer.fail(error.Error('item-not-found'))
 
             # If this session is keyed, validate the next key.
@@ -728,8 +742,7 @@ class HttpbService(punjab.Service):
                 key = hashlib.sha1(body['key']).hexdigest()
                 next_key = body['key']
                 if key != s.key:
-                    if self.v:
-                        log.msg('Error in key')
+                    log.msg('Error in key')
                     return s, defer.fail(error.Error('item-not-found'))
                 s.key = next_key
 
@@ -746,13 +759,11 @@ class HttpbService(punjab.Service):
                     # implements issue 32 and returns the data returned on a dropped connection
                     return s, defer.succeed(s.cache_data[int(body['rid'])])
                 if abs(int(body['rid']) - int(s.rid)) > s.window:
-                    if self.v:
-                        log.msg('This rid is invalid %s %s ' % (str(body['rid']), str(s.rid),))
+                    log.msg('This rid is invalid %s %s ' % (str(body['rid']), str(s.rid),))
                     return  s, defer.fail(error.NotFound)
             else:
-                if self.v:
-                    log.msg('There is no rid on this request')
-                return  s, defer.fail(error.NotFound)
+                log.msg("There is no rid on this request, sid-{}".format(s.sid))
+                return s, defer.fail(error.NotFound)
 
             return s, self._parse(s, body, xmpp_elements)
 
@@ -763,9 +774,7 @@ class HttpbService(punjab.Service):
 
     def onExpire(self, session_id):
         """ preform actions based on when the jabber connection expires """
-        if self.v:
-            log.msg('expire (%s)' % (str(session_id),))
-            log.msg(len(self.sessions.keys()))
+        log.msg('HTTPB Expire: sid-{} ({} total sessions)'.format(session_id, len(self.sessions)))
 
     def _parse(self, session, body_tag, xmpp_elements):
         # increment the request counter
