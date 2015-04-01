@@ -422,8 +422,7 @@ class Session(jabber.JabberClientFactory, server.Session):
             log.err(traceback.print_exc())
             self._wrError(error.Error("remote-connection-failed"))
             self.disconnect()
-        log.msg("XMPP stream started: sid-{}, authid-{}, xs: {}, dir: {}"
-                .format(self.sid, self.authid, xs, dir(xs)))
+        log.msg("XMPP stream started: sid-{}, authid-{}" .format(self.sid, self.authid))
 
 
     def featuresHandler(self, f):
