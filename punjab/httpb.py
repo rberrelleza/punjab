@@ -337,7 +337,9 @@ class Httpb(resource.Resource):
         self.polling = self.service.polling or 15
 
     def render_OPTIONS(self, request):
-        request.setHeader('Access-Control-Allow-Origin', '*')
+        origin = request.getHeader('Origin')
+        request.setHeader('Access-Control-Allow-Origin', origin)
+        request.setHeader('Access-Control-Allow-Credentials', 'true')
         request.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         request.setHeader('Access-Control-Allow-Headers', 'Content-Type')
         request.setHeader('Access-Control-Max-Age', '86400')
@@ -347,7 +349,9 @@ class Httpb(resource.Resource):
         """
         GET is not used, print docs.
         """
-        request.setHeader('Access-Control-Allow-Origin', '*')
+        origin = request.getHeader('Origin')
+        request.setHeader('Access-Control-Allow-Origin', origin)
+        request.setHeader('Access-Control-Allow-Credentials', 'true')
         request.setHeader('Access-Control-Allow-Headers', 'Content-Type')
         return """<html>
                  <body>
@@ -359,7 +363,9 @@ class Httpb(resource.Resource):
         """
         Parse received xml
         """
-        request.setHeader('Access-Control-Allow-Origin', '*')
+        origin = request.getHeader('Origin')
+        request.setHeader('Access-Control-Allow-Origin', origin)
+        request.setHeader('Access-Control-Allow-Credentials', 'true')
         request.setHeader('Access-Control-Allow-Headers', 'Content-Type')
         request.content.seek(0, 0)
         if self.service.v:
