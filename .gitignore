@@ -5,3 +5,4 @@ twistd.pid
 dropin.cache
 *.~*
 *.iml
+.idea
