@@ -16,7 +16,6 @@ except ImportError:
 
 import traceback
 import os
-import warnings
 from punjab import jabber
 from punjab.xmpp import ns
 
@@ -40,12 +39,6 @@ class XMPPClientConnector(SRVConnector):
     """
     def __init__(self, client_reactor, domain, factory):
         """ Init """
-        if isinstance(domain, unicode):
-            warnings.warn(
-                "Domain argument to XMPPClientConnector should be bytes, "
-                "not unicode",
-                stacklevel=2)
-            domain = domain.encode('ascii')
         SRVConnector.__init__(self, client_reactor, 'xmpp-client', domain, factory)
         self.timeout = [1,3]
 
@@ -239,7 +232,7 @@ class Session(jabber.JabberClientFactory, server.Session):
 
     def rawDataIn(self, buf):
         """ Log incoming data on the xmlstream """
-        if self.pint and self.pint.v:
+        if self.pint.v:
             try:
                 log.msg("SID: %s => RECV: %r" % (self.sid, buf,))
             except:

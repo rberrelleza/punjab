@@ -22,7 +22,6 @@ from punjab.xmpp import ns
 
 NS_BIND = 'http://jabber.org/protocol/httpbind'
 NS_FEATURES = 'http://etherx.jabber.org/streams'
-NS_XMPP = 'urn:xmpp:xbosh'
 
 class DummyElement:
     """
@@ -425,7 +424,7 @@ class Httpb(resource.Resource):
                                  'terminate')
             return server.NOT_DONE_YET
 
-        b = domish.Element((NS_BIND, "body"), localPrefixes = {'xmpp' : NS_XMPP, 'stream' : NS_FEATURES })
+        b = domish.Element((NS_BIND, "body"))
         # if we don't have an authid, we have to fail
         if session.authid != 0:
             b['authid'] = session.authid
@@ -442,10 +441,10 @@ class Httpb(resource.Resource):
             b['secure'] = 'true'
 
         b['inactivity'] = str(session.inactivity)
+        ##b['polling'] = '15' # TODO: make this configurable
         b['polling'] = str(self.polling)
         b['requests'] = str(session.hold + 1)
         b['window'] = str(session.window)
-        b[(NS_XMPP, 'version')] = '1.0'
 
         punjab.uriCheck(b, NS_BIND)
         if session.attrs.has_key('content'):
@@ -571,7 +570,7 @@ class HttpbService(punjab.Service):
 
     def __init__(self,
                  verbose = 0, polling = 15,
-                 use_raw = False, bindAddress=None,
+                 use_raw = False, bindAddress=("0.0.0.0", 0),
                  session_creator = None):
         if session_creator is not None:
             self.make_session = session_creator
