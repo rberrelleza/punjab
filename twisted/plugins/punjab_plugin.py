@@ -34,7 +34,9 @@ class Options(usage.Options):
 
     optFlags = [
         ('verbose', 'v', 'Show traffic'),
+        ('proxy_protocol', None, 'Enabled sending proxy protocol headers to the backend'),
     ]
+
 
 class ServiceFactory(object):
     implements(IServiceMaker, IPlugin)

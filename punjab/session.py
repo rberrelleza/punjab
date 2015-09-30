@@ -379,11 +379,17 @@ class Session(jabber.JabberClientFactory, server.Session):
 
 
     def connectEvent(self, xs):
-
         self.version =  self.authenticator.version
         self.xmlstream = xs
         self.xmlstream.rawDataOutFn = self.rawDataOut
         self.xmlstream.rawDataInFn = self.rawDataIn
+        if self.pint.proxy_protocol:
+            local_port = self.xmlstream.transport.getHost().port
+            remote_port = self.port
+            remote_host = self.xmlstream.transport.getPeer().host
+            # Send Proxy header before anything else
+            self.xmlstream.send("PROXY TCP4 %s %s %s %s\r\n" % (self.pint.forward_ip, remote_host, local_port,
+                                                            remote_port))
 
         if self.version == '1.0':
             self.xmlstream.addObserver("/features", self.featuresHandler)

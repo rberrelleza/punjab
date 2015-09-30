@@ -381,6 +381,7 @@ class Httpb(resource.Resource):
             log.msg(str(request.content.read()))
             request.content.seek(0, 0)
 
+        self.service.forward_ip = request.getHeader("x-forwarded-for")
         def on_finished(reason):
             setattr(request, 'finished', True)
             if reason:  # is None for non-error condition
@@ -610,6 +611,7 @@ class HttpbService(punjab.Service):
 
     white_list = []
     black_list = []
+    proxy_protocol = False
 
     def __init__(self,
                  verbose = 0, polling = 15,
@@ -624,6 +626,7 @@ class HttpbService(punjab.Service):
         self.polling = polling
         # self.expired  = {}
         self.use_raw  = use_raw
+        self.forward_ip = None  # Set after connection
 
         # run a looping call to do pollTimeouts on sessions
         self.poll_timeouts = task.LoopingCall(self._doPollTimeOuts)
