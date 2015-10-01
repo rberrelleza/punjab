@@ -389,7 +389,7 @@ class Session(jabber.JabberClientFactory, server.Session):
             remote_host = self.xmlstream.transport.getPeer().host
             # Send Proxy header before anything else
             self.xmlstream.send("PROXY TCP4 %s %s %s %s\r\n" % (self.pint.forward_ip, remote_host, local_port,
-                                                            remote_port))
+                                                                remote_port))
 
         if self.version == '1.0':
             self.xmlstream.addObserver("/features", self.featuresHandler)

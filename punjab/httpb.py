@@ -380,8 +380,10 @@ class Httpb(resource.Resource):
             log.msg("HTTPB POST : ")
             log.msg(str(request.content.read()))
             request.content.seek(0, 0)
+        if self.service.proxy_protocol:
+            forward_ips = request.getHeader("x-forwarded-for")
+            self.service.forward_ip = self.parse_x_forwarded_header(forward_ips)
 
-        self.service.forward_ip = request.getHeader("x-forwarded-for")
         def on_finished(reason):
             setattr(request, 'finished', True)
             if reason:  # is None for non-error condition
@@ -600,6 +602,12 @@ class Httpb(resource.Resource):
         else:
             request.setHeader("content-length", "0")
         request.finish()
+
+    @staticmethod
+    def parse_x_forwarded_header(x_forwarded):
+        # X_forwarded header can be sent as an array, we pick the left most as the winner
+        split_x_forwarded = x_forwarded.partition(",")
+        return split_x_forwarded[0]
 
 
 components.registerAdapter(Httpb, IHttpbService, resource.IResource)
