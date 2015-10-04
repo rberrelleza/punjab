@@ -72,8 +72,8 @@ def makeService(config):
         print "The html directory is needed."
         return
 
-    if config['proxy_protocol']:
-        httpb.HttpbService.proxy_protocol = config['proxy_protocol']
+    if config['proxy_protocol_port']:
+        httpb.HttpbService.proxy_protocol_port = config['proxy_protocol_port']
 
     if config['white_list']:
         httpb.HttpbService.white_list = config['white_list'].split(',')
