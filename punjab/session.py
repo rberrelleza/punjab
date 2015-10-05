@@ -379,16 +379,29 @@ class Session(jabber.JabberClientFactory, server.Session):
 
 
     def connectEvent(self, xs):
-
         self.version =  self.authenticator.version
         self.xmlstream = xs
         self.xmlstream.rawDataOutFn = self.rawDataOut
         self.xmlstream.rawDataInFn = self.rawDataIn
+        if self.pint.proxy_protocol_port == self.port:
+            host_ip = self._get_remote_ip(self.pint.forward_ip)
+            host_port = self.xmlstream.transport.getHost().port
+            peer_port = self.port
+            peer_host = self.xmlstream.transport.getPeer().host
+            # Send Proxy header before anything else
+            self.xmlstream.send("PROXY TCP4 %s %s %s %s\r\n" % (host_ip, peer_host, host_port, peer_port))
 
         if self.version == '1.0':
             self.xmlstream.addObserver("/features", self.featuresHandler)
         log.msg("XMPP connected: authid-{}".format(xs.sid))
 
+    def _get_remote_ip(self, x_fowarded_for_ip):
+        # X_forwarded header can be sent as an array, we pick the left most as the winner
+        if x_fowarded_for_ip is not None:
+            split_x_forwarded = x_fowarded_for_ip.partition(",")
+            return split_x_forwarded[0]
+        else:
+            return self.xmlstream.transport.getHost().host
 
 
     def streamStart(self, xs):

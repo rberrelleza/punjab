@@ -30,11 +30,14 @@ class Options(usage.Options):
          'File path where the site access logs will be written. ' \
          'This overrides the twisted default logging. ' \
          'e.g.: --site_log_file=/var/log/punjab.access.log'),
+        ('proxy_protocol_port', None, None,
+         'A single port which indicates the client wishes to talk to the backend using proxy protocol', int),
     ]
 
     optFlags = [
         ('verbose', 'v', 'Show traffic'),
     ]
+
 
 class ServiceFactory(object):
     implements(IServiceMaker, IPlugin)
