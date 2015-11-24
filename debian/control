@@ -1,0 +1,13 @@
+Source: hc-punjab
+Section: misc
+Priority: optional
+Maintainer: Will DeHaan for Atlassian, Inc. <wdehaan@atlassian.com>
+Homepage: http://www.hipchat.com/
+XS-Debian-Vcs-Svn: svn://svn.debian.org/python-modules/packages/hc-punjab/trunk/
+XS-Debian-Vcs-Browser: http://svn.debian.org/wsvn/python-modules/packages/hc-punjab/trunk/?op=log
+
+Package: hc-punjab
+Architecture: all
+#Depends: ${python:Depends}
+Description: BOSH server
+Replaces: hc-punjab

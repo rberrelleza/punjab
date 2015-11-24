@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+# Debian rules file for Atlassian HipChat punjab module
+
+#DH_VERBOSE=1
+DEB_DESTDIR = $(CURDIR)/debian/hc-punjab
+export DH_VIRTUALENV_INSTALL_ROOT=/hipchat-scm/punjab/vendor
+
+override_dh_virtualenv:
+	dh_virtualenv --extra-pip-arg='--no-deps' --extra-pip-arg='--no-index' --extra-pip-arg='--find-links=./wheelhouse/' --install-suffix=virtualenv
+%:
+	dh $@ --with python-virtualenv --buildsystem=dh_virtualenv
